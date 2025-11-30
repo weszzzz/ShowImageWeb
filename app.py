@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import base64
 import time
+import random
 from datetime import datetime
 
 # --- 1. 页面基础配置 ---
@@ -13,6 +14,7 @@ st.set_page_config(
 )
 
 # --- 2. 自定义 CSS (美化核心) ---
+# 移除了可能导致图片变小的 stImage CSS 样式
 st.markdown("""
 <style>
     /* 全局字体和背景微调 */
@@ -36,15 +38,6 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         margin-bottom: 20px;
         transition: transform 0.2s;
-    }
-    
-    /* 图片容器美化 */
-    div[data-testid="stImage"] {
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    div[data-testid="stImage"] > img {
-        object-fit: cover;
     }
 
     /* 侧边栏美化 */
@@ -124,7 +117,8 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("界面设置")
     # 添加列数选择，解决图片太小的问题
-    gallery_cols = st.slider("画廊列数 (1列图最大)", min_value=1, max_value=4, value=2, help="调整画廊图片的显示大小")
+    # 默认改回 2，因为修复 CSS 后图片会自动撑满列宽，不需要强制单列
+    gallery_cols = st.slider("画廊列数", min_value=1, max_value=4, value=2, help="列数越少，单张图片越大")
 
     st.markdown("---")
     # 显示历史记录数量
@@ -182,7 +176,7 @@ if st.session_state.is_generating:
     else:
         # 准备参数
         endpoint = f"{api_base_url.rstrip('/')}/proxy/generate"
-        final_seed = None if use_random else int(seed_input)
+        final_seed = int(time.time() * 1000) % 1000000000 if use_random else int(seed_input)
         
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -248,7 +242,6 @@ else:
                     # 核心修改：使用 use_container_width=True 确保图片填满容器
                     st.image(item['image'], use_container_width=True)
                     st.caption(f"⏱️ {item['duration']} | 🌱 {item['seed'] if item['seed'] else 'Random'}")
-                    st.text(item['prompt'])
                     
                     st.download_button(
                         label="⬇️ 下载",
