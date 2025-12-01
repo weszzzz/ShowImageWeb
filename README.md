@@ -97,6 +97,24 @@ http://localhost:8501
   git pull origin main && docker compose up -d --build
 ```
 
+## 常见问题 (FAQ)
+
+### Q: WSL2 + Docker 容器网络连接失败无法解决怎么办？
+**A:** 这是 WSL2 环境下的常见问题，解决方案如下：
+
+**构建阶段**: 使用 `--network=host` 参数让 Docker 构建过程使用 WSL2 主机网络
+```bash
+docker build --network=host -t showimageweb .
+```
+
+**运行阶段**: 在 `docker-compose.yml` 中配置 `network_mode: "host"`
+```yaml
+  services:
+    showimageweb:
+      network_mode: "host"  # 关键配置（替换ports:）
+      # ... 其他配置
+```
+
 ## API配置
 
 应用支持任意兼容的AI图像生成API：

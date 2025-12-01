@@ -6,9 +6,8 @@ services:
     build: .
     # 容器名字，方便查看
     container_name: showimageweb-container
-    # 端口映射: 左边是宿主机(浏览器访问的)，右边是容器内(Streamlit默认的)
-    ports:
-      - "8501:8501"  # 监听所有接口（包括 127.0.0.1）
+    # 使用 host 网络模式解决 DNS 问题
+    network_mode: "host"
     # 如果容器崩溃或电脑重启，自动重启这个容器
     restart: always
     # 可选：配置环境变量（虽然目前代码里没用，以后可以用来存 API Key）
