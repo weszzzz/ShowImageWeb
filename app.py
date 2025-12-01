@@ -690,6 +690,30 @@ if 'has_generated' not in st.session_state:
 if 'saved_gallery' not in st.session_state:
     st.session_state.saved_gallery = load_saved_gallery()
 
+# 初始化API Key保存状态
+if 'save_api_key' not in st.session_state:
+    st.session_state.save_api_key = False
+
+def save_api_key_to_local(key):
+    """将API Key保存到本地文件"""
+    try:
+        with open('api_key.txt', 'w') as f:
+            f.write(key)
+        return True
+    except Exception as e:
+        st.error(f"保存API Key失败: {e}")
+        return False
+
+def load_saved_api_key():
+    """从本地文件加载保存的API Key"""
+    try:
+        if os.path.exists('api_key.txt'):
+            with open('api_key.txt', 'r') as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return None
+
 def add_to_history(prompt, image_bytes, seed, duration):
     """将生成的图片添加到历史记录的最前面"""
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -739,13 +763,52 @@ with st.sidebar:
     # --- 默认 Key ---
     DEFAULT_API_KEY = "sk-zKTGcw8llBFZLpXAAsxTmMSmCfY8DNfe"
 
-    api_key = st.text_input(
-        "🔐 API Key",
-        value=DEFAULT_API_KEY,  # <--- 核心修改：设置默认值
-        type="password",
-        placeholder="sk-...",   # 当用户清空输入框时显示的提示
-        help="已预置默认密钥，您也可以修改为自己的密钥"
+    # 尝试加载本地保存的API Key
+    saved_key = load_saved_api_key()
+
+    # 如果有保存的key，使用保存的；否则显示默认key
+    if saved_key:
+        api_key = st.text_input(
+            "🔐 API Key",
+            value=saved_key,
+            type="password",
+            placeholder="sk-...",
+            help="已加载本地保存的API Key"
+        )
+    else:
+        api_key = st.text_input(
+            "🔐 API Key",
+            value=DEFAULT_API_KEY,
+            type="password",
+            placeholder="sk-...",
+            help="已预置默认密钥，您也可以修改为自己的密钥"
+        )
+
+    # 添加保存API Key的勾选框
+    # 如果有保存的key，默认勾选；否则使用session状态
+    default_checkbox_value = st.session_state.save_api_key or bool(saved_key)
+
+    save_key = st.checkbox(
+        "💾保存Key",
+        value=default_checkbox_value,
+        help="勾选后将API Key保存到本地文件，下次启动时自动加载"
     )
+
+    # 更新保存状态
+    st.session_state.save_api_key = save_key
+
+    # 如果用户勾选了保存且API Key发生变化，则保存到本地
+    if save_key and api_key and api_key != saved_key:
+        if save_api_key_to_local(api_key):
+            st.success("✅ API Key已保存到本地")
+
+    # 如果用户取消勾选，删除本地保存的文件
+    if not save_key and os.path.exists('api_key.txt'):
+        try:
+            os.remove('api_key.txt')
+            st.info("🗑️ 已删除本地保存的API Key")
+        except Exception:
+            pass
 
     # 分隔线
     st.markdown('<div style="height: 1px; background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(102, 126, 234, 0.1), transparent); margin: 1rem 0;"></div>', unsafe_allow_html=True)
