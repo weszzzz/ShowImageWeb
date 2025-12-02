@@ -10,6 +10,8 @@ services:
       - "8501:8501" 
     # 如果容器崩溃或电脑重启，自动重启这个容器
     restart: always
+    volumes:
+      - ./saved_gallery:/app/saved_gallery
     # 可选：配置环境变量（虽然目前代码里没用，以后可以用来存 API Key）
     environment:
       - TZ=Asia/Shanghai
