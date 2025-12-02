@@ -153,3 +153,4 @@ Thumbs.db
 # Docker
 .dockerignore
 .claude/settings.local.json
+/saved_gallery

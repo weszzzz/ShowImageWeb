@@ -9,6 +9,8 @@ import json
 import os
 import hashlib
 
+AUTO_SAVE_GENERATED_IMAGES = True
+
 # --- 1. 页面基础配置 ---
 st.set_page_config(
     page_title="ShowImageWeb - AI图像生成器",
@@ -598,7 +600,7 @@ def save_image_to_file(image_bytes, image_id):
         st.error(f"保存图片失败: {e}")
         return None
 
-def save_temp_to_gallery(temp_item_id):
+def save_temp_to_gallery(temp_item_id, *, remove_from_history=True, silent=False):
     """将临时作品保存到永久画廊"""
     # 在历史记录中找到对应的临时作品
     for i, item in enumerate(st.session_state.history):
@@ -606,15 +608,17 @@ def save_temp_to_gallery(temp_item_id):
             temp_item = item
             break
     else:
-        st.toast("❌ 未找到对应的临时作品", icon="❌")
+        if not silent:
+            st.toast("❌ 未找到对应的临时作品", icon="❌")
         return False
 
     # 检查是否已经在永久画廊中
     image_bytes = base64.b64decode(temp_item['base64_image'])
     image_hash = get_image_hash(image_bytes)
-    for item in st.session_state.saved_gallery:
-        if item.get('hash') == image_hash:
-            st.toast("🎨 该作品已在画廊中", icon="✅")
+    for saved_item in st.session_state.saved_gallery:
+        if saved_item.get('hash') == image_hash:
+            if not silent:
+                st.toast("🎨 该作品已在画廊中", icon="✅")
             return False
 
     # 保存图片文件
@@ -636,12 +640,14 @@ def save_temp_to_gallery(temp_item_id):
 
     st.session_state.saved_gallery.insert(0, gallery_item)
 
-    # 从临时历史中移除
-    st.session_state.history.pop(i)
+    # 根据需要从临时历史中移除
+    if remove_from_history:
+        st.session_state.history.pop(i)
 
     # 保存到文件
     if save_gallery_to_file():
-        st.toast("🎉 作品已保存到画廊!", icon="✅")
+        if not silent:
+            st.toast("🎉 作品已保存到画廊!", icon="✅")
         return True
     return False
 
@@ -719,8 +725,9 @@ def add_to_history(prompt, image_bytes, seed, duration):
     timestamp = datetime.now().strftime("%H:%M:%S")
     # 只存储base64编码，节省内存
     base64_image = base64.b64encode(image_bytes).decode()
+    item_id = f"{int(time.time())}"
     st.session_state.history.insert(0, {
-        "id": f"{int(time.time())}",
+        "id": item_id,
         "prompt": prompt,
         "base64_image": base64_image,  # 只存储base64
         "seed": seed,
@@ -729,6 +736,7 @@ def add_to_history(prompt, image_bytes, seed, duration):
     })
     # 标记已有生成记录
     st.session_state.has_generated = True
+    return item_id
 
 def clear_history():
     st.session_state.history = []
@@ -878,7 +886,9 @@ with st.sidebar:
         st.markdown('</div>', unsafe_allow_html=True)
 
     # 临时作品管理
-    temp_count = len(st.session_state.history)
+    saved_ids_sidebar = {item['id'] for item in st.session_state.saved_gallery}
+    unsaved_history = [item for item in st.session_state.history if item['id'] not in saved_ids_sidebar]
+    temp_count = len(unsaved_history)
     if temp_count > 0:
         st.markdown('<div style="margin-top: 1rem;">', unsafe_allow_html=True)
         if st.button(
@@ -888,7 +898,7 @@ with st.sidebar:
             help="将所有临时作品永久保存"
         ):
             saved_count = 0
-            for item in st.session_state.history[:]:  # 使用切片避免修改正在迭代的列表
+            for item in unsaved_history:
                 if save_temp_to_gallery(item["id"]):
                     saved_count += 1
             if saved_count > 0:
@@ -1085,7 +1095,15 @@ if st.session_state.is_generating or (hasattr(st.session_state, 'is_processing')
                         duration = time.time() - start_time
 
                         # ✅ 存入历史记录
-                        add_to_history(prompt, image_bytes, final_seed, duration)
+                        history_id = add_to_history(prompt, image_bytes, final_seed, duration)
+
+                        # 🔁 自动保存到永久画廊
+                        if AUTO_SAVE_GENERATED_IMAGES:
+                            save_temp_to_gallery(
+                                history_id,
+                                remove_from_history=False,
+                                silent=True
+                            )
 
                         # 成功提示
                         status.update(
@@ -1157,8 +1175,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 显示所有作品：临时作品 + 永久作品
-temp_gallery = st.session_state.history
 saved_gallery = st.session_state.saved_gallery
+saved_ids = {item['id'] for item in saved_gallery}
+temp_gallery = [item for item in st.session_state.history if item['id'] not in saved_ids]
 
 # 合并显示：临时作品在前，永久作品在后
 gallery_items = temp_gallery + saved_gallery
