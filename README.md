@@ -23,6 +23,7 @@ AI图像生成网页交互平台 - 基于Streamlit构建的Web应用，提供简
 - **自有Key保存功能**: 支持API Key本地保存，下次启动自动加载
 - **固定画廊功能**: 支持作品保存，界面刷新不会消失
 - **优化体验**: 删除不必要的组件
+- **国内源优化**: 配置`Dockerfile`国内镜像源和pip源，解决国内网络环境下的拉取问题
 
 ## 应用预览
 
@@ -106,23 +107,6 @@ http://localhost:8501
   git pull origin main && docker compose up -d --build
 ```
 
-## 常见问题 (FAQ)
-
-### Q: WSL2 + Docker 容器网络连接失败无法解决怎么办？
-**A:** 这是 WSL2 环境下的常见问题，解决方案如下：
-
-**构建阶段**: 使用 `--network=host` 参数让 Docker 构建过程使用 WSL2 主机网络
-```bash
-docker build --network=host -t showimageweb-container .
-```
-
-**运行阶段**: 在 `docker-compose.yml` 中配置 `network_mode: "host"`
-```yaml
-  services:
-    showimageweb:
-      network_mode: "host"  # 关键配置（替换ports:）
-      # ... 其他配置
-```
 
 ## API配置
 
